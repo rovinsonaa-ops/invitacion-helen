@@ -94,6 +94,82 @@
       align-items: center;
     }
 
+    /* BOTÓN FLOTANTE DE MÚSICA */
+    .music-floating-btn {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #ff758f;
+      border-radius: 50px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(255, 77, 128, 0.35);
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .music-floating-btn:active {
+      transform: scale(0.92);
+    }
+
+    .music-icon {
+      font-size: 1.25rem;
+      animation: rotateDisc 4s linear infinite;
+      animation-play-state: paused;
+    }
+
+    .music-floating-btn.playing .music-icon {
+      animation-play-state: running;
+    }
+
+    @keyframes rotateDisc {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .music-label {
+      font-family: 'Fredoka', cursive;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #d81b60;
+    }
+
+    .music-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+    }
+
+    .music-bars span {
+      width: 3px;
+      background: #ff4d80;
+      border-radius: 2px;
+      height: 4px;
+      transition: height 0.2s;
+    }
+
+    .music-floating-btn.playing .music-bars span:nth-child(1) {
+      animation: barJump 0.6s infinite alternate;
+    }
+    .music-floating-btn.playing .music-bars span:nth-child(2) {
+      animation: barJump 0.8s infinite alternate 0.2s;
+    }
+    .music-floating-btn.playing .music-bars span:nth-child(3) {
+      animation: barJump 0.5s infinite alternate 0.4s;
+    }
+
+    @keyframes barJump {
+      0% { height: 3px; }
+      100% { height: 14px; }
+    }
+
     /* =========================================
        PANTALLA 1: PORTADA / BIENVENIDA
        ========================================= */
@@ -520,6 +596,21 @@
 </head>
 <body>
 
+  <!-- Elemento de audio con la canción oficial de Hello Kitty -->
+  <audio id="bg-music" loop preload="auto">
+    <source src="musica.m4a" type="audio/mp4">
+    <source src="musica.mp4" type="audio/mp4">
+  </audio>
+
+  <!-- Botón flotante para controlar la música -->
+  <div class="music-floating-btn" id="music-toggle" title="Controlar Música">
+    <span class="music-icon" id="music-icon">🎵</span>
+    <span class="music-label" id="music-label">Música</span>
+    <div class="music-bars" id="music-bars">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
   <!-- Fondo de lunares -->
   <div class="bg-pattern"></div>
 
@@ -662,7 +753,6 @@
 
   <script>
     // --- CUENTA REGRESIVA A LAS 7:00 PM DEL 6 DE OCTUBRE 2026 ---
-    // (UTC-5: Hora de Perú)
     const targetDate = new Date("2026-10-06T19:00:00-05:00").getTime();
 
     function updateCountdown() {
@@ -691,52 +781,38 @@
     updateCountdown();
     setInterval(updateCountdown, 1000);
 
-    // --- SONIDO CELEBRATORIO (Web Audio API) ---
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    let audioCtx = null;
+    // --- MÚSICA DE FONDO (Canción oficial de Hello Kitty) ---
+    const bgMusic = document.getElementById("bg-music");
+    const musicToggle = document.getElementById("music-toggle");
+    let isMusicPlaying = false;
 
-    function playKittyChime() {
-      try {
-        if (!audioCtx && AudioContextClass) {
-          audioCtx = new AudioContextClass();
-        }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        if (!audioCtx) return;
-
-        const melody = [
-          { f: 659.25, d: 0.12, t: 0 },    // E5
-          { f: 783.99, d: 0.12, t: 0.1 },  // G5
-          { f: 987.77, d: 0.14, t: 0.2 },  // B5
-          { f: 1318.51, d: 0.45, t: 0.32 } // E6
-        ];
-
-        melody.forEach(n => {
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(n.f, audioCtx.currentTime + n.t);
-
-          gain.gain.setValueAtTime(0.001, audioCtx.currentTime + n.t);
-          gain.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime + n.t + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + n.t + n.d);
-
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-
-          osc.start(audioCtx.currentTime + n.t);
-          osc.stop(audioCtx.currentTime + n.t + n.d);
+    function playMusic() {
+      if (bgMusic) {
+        bgMusic.play().then(() => {
+          isMusicPlaying = true;
+          musicToggle.classList.add("playing");
+        }).catch(err => {
+          console.log("Autoplay bloqueado:", err);
         });
-      } catch(e) {}
+      }
     }
+
+    musicToggle.addEventListener("click", () => {
+      if (isMusicPlaying) {
+        bgMusic.pause();
+        isMusicPlaying = false;
+        musicToggle.classList.remove("playing");
+      } else {
+        playMusic();
+      }
+    });
 
     // --- CONFETI TEMÁTICO ---
     function launchConfetti() {
       if (typeof confetti === 'function') {
         confetti({
-          particleCount: 75,
-          spread: 80,
+          particleCount: 80,
+          spread: 85,
           origin: { y: 0.6 },
           colors: ['#ff4d80', '#ff85a2', '#feca57', '#ffffff', '#ffb3c6']
         });
@@ -780,7 +856,7 @@
     const toast = document.getElementById('toast');
 
     enterBtn.addEventListener('click', () => {
-      playKittyChime();
+      playMusic();
       launchConfetti();
 
       welcomeScreen.style.display = 'none';
@@ -794,9 +870,7 @@
     });
 
     hugBtn.addEventListener('click', () => {
-      playKittyChime();
       launchConfetti();
-
       toast.classList.add('show');
       setTimeout(() => {
         toast.classList.remove('show');
